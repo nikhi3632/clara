@@ -49,6 +49,7 @@ htmlcov/
 
 # Claude
 .claude/
+SPEC.md
 
 # Misc
 *.bak
