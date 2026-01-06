@@ -55,7 +55,8 @@ def main() -> None:
 
     from livekit import agents
 
-    agents.cli.run_app(server)
+    # More workers = faster dispatch, less cold start
+    agents.cli.run_app(server, num_idle_processes=2)
 
 
 if __name__ == "__main__":

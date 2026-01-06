@@ -9,6 +9,9 @@ from clara.tools.restaurant import get_restaurant_details, search_restaurants
 
 logger = get_logger(__name__)
 
+# Preload VAD model once at module load (reduces per-session latency by ~500ms)
+_vad = silero.VAD.load()
+
 
 class ClaraAgent(Agent):
     """Voice-powered restaurant concierge agent."""
@@ -114,19 +117,19 @@ async def create_session(ctx: JobContext) -> None:
         logger.info("creating_session_components")
         session = AgentSession(
             stt=deepgram.STT(model="nova-3"),
-            llm=openai.LLM(model="gpt-4o"),
+            llm=openai.LLM(model="gpt-4o-mini"),  # Faster than gpt-4o, lower latency
             tts=cartesia.TTS(model="sonic-2-2025-03-07"),
-            vad=silero.VAD.load(),
+            vad=_vad,  # Use preloaded VAD
         )
 
         logger.info("starting_session")
         await session.start(room=ctx.room, agent=ClaraAgent())
         logger.info("session_started")
 
-        # Greet the user
+        # Greet the user (keep it short for faster TTS)
         logger.info("generating_greeting")
         await session.generate_reply(
-            instructions="Greet the caller warmly and ask how you can help them find a restaurant."
+            instructions="Say a brief greeting like 'Hi, I'm Clara. How can I help you find a restaurant today?'"
         )
         logger.info("greeting_sent")
     except Exception as e:
