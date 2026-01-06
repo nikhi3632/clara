@@ -26,7 +26,8 @@ if [ -n "$AWS_REGION" ]; then
 
     # Call Redirect
     export CALL_REDIRECT_NUMBER=$(aws ssm get-parameter --name "/clara/CALL_REDIRECT_NUMBER" --with-decryption --query "Parameter.Value" --output text)
-    export CALL_REDIRECT_ENABLED=${CALL_REDIRECT_ENABLED:-true}
+    # Default to false - only enable redirect if explicitly set
+    export CALL_REDIRECT_ENABLED=${CALL_REDIRECT_ENABLED:-false}
 
     echo "Secrets loaded."
 fi
