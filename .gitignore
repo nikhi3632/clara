@@ -1,6 +1,7 @@
 # Dependencies
 node_modules/
 venv/
+.venv/
 __pycache__/
 *.pyc
 
@@ -45,6 +46,9 @@ htmlcov/
 
 # Vercel
 .vercel/
+
+# Claude
+.claude/
 
 # Misc
 *.bak
