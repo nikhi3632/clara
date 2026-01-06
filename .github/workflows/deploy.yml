@@ -31,24 +31,40 @@ jobs:
           aws ssm send-command \
             --instance-ids ${{ secrets.EC2_INSTANCE_ID }} \
             --document-name "AWS-RunShellScript" \
-            --parameters 'commands=["docker pull ${{ secrets.ECR_URL }}:latest", "docker stop clara-agent || true", "docker rm clara-agent || true", "docker run -d --restart always --name clara-agent -p 8080:8080 -e AWS_REGION=us-east-1 --log-driver=awslogs --log-opt awslogs-region=us-east-1 --log-opt awslogs-group=/clara/agent ${{ secrets.ECR_URL }}:latest"]'
+            --parameters 'commands=["docker system prune -af --filter until=24h", "aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${{ secrets.ECR_URL }}", "docker pull ${{ secrets.ECR_URL }}:latest", "docker stop clara-agent || true", "docker rm clara-agent || true", "docker run -d --restart unless-stopped --name clara-agent -p 8081:8081 -e AWS_REGION=us-east-1 -e CALL_REDIRECT_ENABLED=false --log-driver=awslogs --log-opt awslogs-region=us-east-1 --log-opt awslogs-group=/ecs/clara-agent ${{ secrets.ECR_URL }}:latest"]'
 
   deploy-frontend:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy to Vercel
-        id: vercel-deploy
-        uses: amondnet/vercel-action@v25
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          vercel-args: '--prod'
-          working-directory: ./frontend
+          node-version: '20'
 
-      - name: Set Vercel alias
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Pull Vercel Environment
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: ./frontend
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Build Project
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: ./frontend
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Deploy to Vercel
         run: |
-          npm install -g vercel
-          vercel alias set ${{ steps.vercel-deploy.outputs.preview-url }} clara-concierge.vercel.app --token ${{ secrets.VERCEL_TOKEN }} --scope ${{ secrets.VERCEL_ORG_ID }}
+          url=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
+          echo "Deployed to: $url"
+        working-directory: ./frontend
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
