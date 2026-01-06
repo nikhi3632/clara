@@ -53,8 +53,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ token: await token.toJwt() })
   } catch (error) {
     console.error('Token generation failed:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json(
-      { error: 'Failed to generate token' },
+      { error: 'Failed to generate token', details: errorMessage },
       { status: 500 }
     )
   }

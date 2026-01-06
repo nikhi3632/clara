@@ -21,9 +21,23 @@ INSTANCE_ID=$(aws ec2 describe-instances \
   --filters "Name=tag:Name,Values=clara-agent" "Name=instance-state-name,Values=running" \
   --query "Reservations[0].Instances[0].InstanceId" --output text)
 
+# Clean up old images, pull new one, and restart container
 aws ssm send-command \
   --instance-ids ${INSTANCE_ID} \
   --document-name "AWS-RunShellScript" \
-  --parameters "commands=[\"docker pull ${ECR_URL}:latest\", \"docker stop clara-agent || true\", \"docker rm clara-agent || true\", \"docker run -d --restart always --name clara-agent -p 8080:8080 -e AWS_REGION=us-east-1 --log-driver=awslogs --log-opt awslogs-region=us-east-1 --log-opt awslogs-group=/clara/agent ${ECR_URL}:latest\"]"
+  --parameters "commands=[
+    \"echo 'Cleaning up old Docker images...'\",
+    \"docker system prune -af --filter 'until=24h'\",
+    \"echo 'Logging into ECR...'\",
+    \"aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${ECR_URL}\",
+    \"echo 'Pulling new image...'\",
+    \"docker pull ${ECR_URL}:latest\",
+    \"echo 'Restarting container...'\",
+    \"docker stop clara-agent || true\",
+    \"docker rm clara-agent || true\",
+    \"docker run -d --restart unless-stopped --name clara-agent -p 8081:8081 -e AWS_REGION=us-east-1 -e CALL_REDIRECT_ENABLED=false --log-driver=awslogs --log-opt awslogs-region=us-east-1 --log-opt awslogs-group=/ecs/clara-agent ${ECR_URL}:latest\",
+    \"echo 'Deploy complete'\",
+    \"docker ps --format '{{.Names}} {{.Status}}'\"
+  ]"
 
 echo "Deployed!"

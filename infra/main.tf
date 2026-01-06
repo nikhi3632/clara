@@ -167,17 +167,29 @@ resource "aws_instance" "clara" {
   vpc_security_group_ids = [aws_security_group.clara.id]
   iam_instance_profile   = aws_iam_instance_profile.clara.name
 
+  root_block_device {
+    volume_size = 20
+    volume_type = "gp3"
+  }
+
   user_data = <<-EOF
     #!/bin/bash
     apt-get update
     apt-get install -y docker.io awscli
     systemctl enable docker
     systemctl start docker
+
+    # Set up daily Docker cleanup cron job (runs at 3 AM UTC)
+    echo "0 3 * * * root docker system prune -af --filter 'until=48h' >> /var/log/docker-cleanup.log 2>&1" > /etc/cron.d/docker-cleanup
+    chmod 644 /etc/cron.d/docker-cleanup
+
+    # Pull and run the agent
     aws ecr get-login-password --region ${var.aws_region} | docker login --username AWS --password-stdin ${aws_ecr_repository.clara.repository_url}
     docker pull ${aws_ecr_repository.clara.repository_url}:latest
-    docker run -d --restart always --name clara-agent -p 8080:8080 \
+    docker run -d --restart unless-stopped --name clara-agent -p 8081:8081 \
       -e AWS_REGION=${var.aws_region} \
-      --log-driver=awslogs --log-opt awslogs-region=${var.aws_region} --log-opt awslogs-group=/clara/agent \
+      -e CALL_REDIRECT_ENABLED=false \
+      --log-driver=awslogs --log-opt awslogs-region=${var.aws_region} --log-opt awslogs-group=/ecs/clara-agent \
       ${aws_ecr_repository.clara.repository_url}:latest
   EOF
 

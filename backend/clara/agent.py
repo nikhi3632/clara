@@ -104,22 +104,30 @@ Speak naturally as if having a phone conversation.""",
 
 async def create_session(ctx: JobContext) -> None:
     """Create and start an agent session."""
-    logger.info(
-        "session_start",
-        room_name=ctx.room.name,
-        source="sip" if ctx.room.name.startswith("call-") else "web",
-    )
+    try:
+        logger.info(
+            "session_start",
+            room_name=ctx.room.name,
+            source="sip" if ctx.room.name.startswith("call-") else "web",
+        )
 
-    session = AgentSession(
-        stt=deepgram.STT(model="nova-3"),
-        llm=openai.LLM(model="gpt-4o"),
-        tts=cartesia.TTS(model="sonic-3"),
-        vad=silero.VAD.load(),
-    )
+        logger.info("creating_session_components")
+        session = AgentSession(
+            stt=deepgram.STT(model="nova-3"),
+            llm=openai.LLM(model="gpt-4o"),
+            tts=cartesia.TTS(model="sonic-2-2025-03-07"),
+            vad=silero.VAD.load(),
+        )
 
-    await session.start(room=ctx.room, agent=ClaraAgent())
+        logger.info("starting_session")
+        await session.start(room=ctx.room, agent=ClaraAgent())
+        logger.info("session_started")
 
-    # Greet the user
-    await session.generate_reply(
-        instructions="Greet the caller warmly and ask how you can help them find a restaurant."
-    )
+        # Greet the user
+        logger.info("generating_greeting")
+        await session.generate_reply(
+            instructions="Greet the caller warmly and ask how you can help them find a restaurant."
+        )
+        logger.info("greeting_sent")
+    except Exception as e:
+        logger.error("session_error", error=str(e), error_type=type(e).__name__)
