@@ -2,7 +2,7 @@
 
 Voice-powered restaurant concierge that helps users discover restaurants and connects them directly via call transfer.
 
-**[Live Demo](https://clara-concierge.vercel.app)** | **[Video Walkthrough](https://www.loom.com/share/cdf2eb3f04c74806a26ce17baed08442)**
+**[Video Walkthrough](https://www.loom.com/share/cdf2eb3f04c74806a26ce17baed08442)**
 
 ## Features
 
